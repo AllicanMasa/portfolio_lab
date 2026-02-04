@@ -2,15 +2,16 @@ import { useState } from "react";
 import "./register.css";
 
 export default function Register() {
-    const [name, setName] = useState("");
+    const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
 
     const [submitted, setSubmitted] = useState(false);
-    const [error, setError] = useState(false);
+    const [error, setError] = useState("");
 
-    const handleName = (e) => {
-        setName(e.target.value);
+    const handleUsername = (e) => {
+        setUsername(e.target.value);
         setSubmitted(false);
     };
 
@@ -26,14 +27,55 @@ export default function Register() {
         setSubmitted(false);
     };
 
+    const handleConfirmPassword = (e) => {
+        setConfirmPassword(e.target.value);
+        setSubmitted(false);
+    };
+
     // Handling the form submission
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (name === "" || email === "" || password === "") {
-            setError(true);
-        } else {
+        setError("");
+        setSubmitted(false);
+
+        if (username === "" || email === "" || password === "" || confirmPassword === "") {
+            setError("Please enter all the fields.");
+            return;
+        }
+
+        if (!/^[A-Za-z0-9._%+-]+@gmail\.com$/.test(email)) {
+            setError("Email must be a valid Gmail address.");
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            setError("Passwords do not match.");
+            return;
+        }
+
+        try {
+            const response = await fetch("http://localhost:8000/register", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    username,
+                    email,
+                    password,
+                    confirm_password: confirmPassword,
+                }),
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                setError(data.detail || "Registration failed.");
+                return;
+            }
+
             setSubmitted(true);
-            setError(false);
+        } catch (err) {
+            setError("Unable to register right now. Please try again.");
         }
     };
 
@@ -46,7 +88,7 @@ export default function Register() {
                     display: submitted ? "" : "none",
                 }}
             >
-                <h1>User {name} successfully registered!!</h1>
+                <h1>User {username} successfully registered!!</h1>
             </div>
         );
     };
@@ -60,7 +102,7 @@ export default function Register() {
                     display: error ? "" : "none",
                 }}
             >
-                <h1>Please enter all the fields</h1>
+                <h1>{error}</h1>
             </div>
         );
     };
@@ -79,11 +121,11 @@ export default function Register() {
 
             <form>
                 {/* Labels and inputs for form data */}
-                <label className="label">Name</label>
+                <label className="label">Username</label>
                 <input
-                    onChange={handleName}
+                    onChange={handleUsername}
                     className="input"
-                    value={name}
+                    value={username}
                     type="text"
                 />
 
@@ -100,6 +142,14 @@ export default function Register() {
                     onChange={handlePassword}
                     className="input"
                     value={password}
+                    type="password"
+                />
+
+                <label className="label">Confirm Password</label>
+                <input
+                    onChange={handleConfirmPassword}
+                    className="input"
+                    value={confirmPassword}
                     type="password"
                 />
 
