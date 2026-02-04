@@ -7,19 +7,20 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from database import SessionLocal, engine
+from database import Base
 import models
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-models.Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 GMAIL_PATTERN = re.compile(r"^[A-Za-z0-9._%+-]+@gmail\.com$")
 
@@ -54,33 +55,18 @@ def root():
 
 @app.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 def register_user(payload: RegisterRequest, db: Session = Depends(get_db)):
+    print("📥 Incoming payload:", payload)
+
     if not GMAIL_PATTERN.match(payload.email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email must be a valid Gmail address.",
         )
+
     if payload.password != payload.confirm_password:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Passwords do not match.",
-        )
-
-    existing_username = (
-        db.query(models.User)
-        .filter(models.User.username == payload.username)
-        .first()
-    )
-    if existing_username:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Username already exists.",
-        )
-
-    existing_email = db.query(models.User).filter(models.User.email == payload.email).first()
-    if existing_email:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Email already exists.",
         )
 
     user = models.User(
@@ -88,8 +74,11 @@ def register_user(payload: RegisterRequest, db: Session = Depends(get_db)):
         email=payload.email,
         password_hash=hash_password(payload.password),
     )
+
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    print("✅ User saved with ID:", user.id)
 
     return {"message": "Registration successful."}
