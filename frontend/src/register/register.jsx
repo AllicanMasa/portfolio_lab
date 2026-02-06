@@ -1,55 +1,42 @@
 import { useState } from "react";
 import "./register.css";
+import { Link } from 'react-router-dom'
+import { PiConfettiBold } from "react-icons/pi";
 
 export default function Register() {
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [formData, setFormData] = useState({
+    username: "",
+    fullname: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
 
-  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState(null);
+  const [modalConfig, setModalConfig] = useState(null);
 
-  const handleUsername = (e) => {
-    setUsername(e.target.value);
-    setSubmitted(false);
-  };
+  const { username, fullname, email, password, confirmPassword } = formData;
 
-  const handleEmail = (e) => {
-    setEmail(e.target.value);
-    setSubmitted(false);
-  };
+  const passwordsMatch =
+    password && confirmPassword && password === confirmPassword;
 
-  const handlePassword = (e) => {
-    setPassword(e.target.value);
-    setSubmitted(false);
-  };
+  const isFormValid =
+    username.trim() &&
+    fullname.trim() &&
+    email.trim() &&
+    password &&
+    confirmPassword &&
+    /^[A-Za-z0-9._%+-]+@gmail\.com$/.test(email) &&
+    passwordsMatch;
 
-  const handleConfirmPassword = (e) => {
-    setConfirmPassword(e.target.value);
-    setSubmitted(false);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-    setSubmitted(false);
-
-    // Frontend validation
-    if (!username || !email || !password || !confirmPassword) {
-      setError(["Please enter all the fields."]);
-      return;
-    }
-
-    if (!/^[A-Za-z0-9._%+-]+@gmail\.com$/.test(email)) {
-      setError(["Email must be a valid Gmail address."]);
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError(["Passwords do not match."]);
-      return;
-    }
 
     try {
       const response = await fetch("http://localhost:8000/register", {
@@ -57,38 +44,92 @@ export default function Register() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username,
+          fullname,
           email,
           password,
           confirm_password: confirmPassword,
         }),
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        console.error("Failed to parse JSON:", jsonErr);
+        data = { detail: "Invalid response from server" };
+      }
 
       if (!response.ok) {
-        // Handle backend validation errors
+        // Show field/validation errors as list
         if (Array.isArray(data.detail)) {
-          setError(data.detail.map((err) => err.msg));
+          setError(data.detail.map((err) => err.msg || String(err)));
         } else {
-          setError([data.detail || "Registration failed."]);
+          setError([data.detail || "Registration failed"]);
         }
+
+        // Duplicate email modal
+        if (
+          response.status === 409 ||
+          (typeof data.detail === "string" &&
+            data.detail.toLowerCase().includes("email") &&
+            data.detail.toLowerCase().includes("already")) ||
+          (typeof data.detail === "string" &&
+            data.detail
+              .toLowerCase()
+              .includes("this email is already registered"))
+        ) {
+          setModalConfig({
+            type: "error",
+            title: "Email Already Registered",
+            message:
+              "This email is already in use. Would you like to log in instead?",
+            primaryAction: {
+              label: "Go to Login",
+              to: "/login",
+              // className: "login-link",
+            },
+            secondaryAction: {
+              label: "Try Another Email",
+              onClick: () => setModalConfig(null),
+            },
+          });
+          return;
+        }
+
         return;
       }
 
-      setSubmitted(true);
-      setUsername("");
-      setEmail("");
-      setPassword("");
-      setConfirmPassword("");
+      // ── Success ─────────────────────────────────────────────
+      setModalConfig({
+        type: "success",
+        title: "🎉 Account Created!",
+        message: "Your account has been successfully registered.",
+        primaryAction: {
+          label: "Go to Login",
+          to: "/login",
+          // className: "login-link",
+        },
+        secondaryAction: {
+          label: "Close",
+          onClick: () => setModalConfig(null),
+        },
+      });
+
+      // Reset form only on success
+      setFormData({
+        username: "",
+        fullname: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+      });
     } catch (err) {
       setError(["Unable to register right now. Please try again."]);
     }
   };
 
-  // Render error messages
   const errorMessage = () => {
     if (!error) return null;
-
     return (
       <div className="error">
         {error.map((errMsg, index) => (
@@ -98,69 +139,112 @@ export default function Register() {
     );
   };
 
-  // Render success message
-  const successMessage = () => {
-    if (!submitted) return null;
-
-    return (
-      <div className="success">
-        <h1>User {username || " "} successfully registered!!</h1>
-      </div>
-    );
-  };
-
   return (
     <div className="form">
-      <div>
-        <h1>User Registration</h1>
-      </div>
+      <title>Create Account</title>
+      <section className="register">
+        <div className="title">
+          <p className="ico"><PiConfettiBold /></p>
+          <h1>Create a new account.</h1>
+          <p>
+            Already have an account? <Link to="/login">Login</Link>
+          </p>
+        </div>
 
-      <div className="messages">
-        {errorMessage()}
-        {successMessage()}
-      </div>
+        <div className="register-input">
+          <form onSubmit={handleSubmit} className="register-form">
+            <input
+              className="input1"
+              type="text"
+              name="username"
+              placeholder="Username"
+              value={username}
+              onChange={handleChange}
+              autoComplete="username"
+            />
+            <input
+              className="input2"
+              type="text"
+              name="fullname"
+              placeholder="Fullname"
+              value={fullname}
+              onChange={handleChange}
+              autoComplete="name"
+            />
+            <input
+              className="input3"
+              type="email"
+              name="email"
+              placeholder="Email"
+              value={email}
+              onChange={handleChange}
+              autoComplete="email"
+            />
+            <input
+              className="input4"
+              type="password"
+              name="password"
+              placeholder="Password"
+              value={password}
+              onChange={handleChange}
+              autoComplete="new-password"
+            />
+            <input
+              className={`input5 ${confirmPassword.length === 0 ? "" : passwordsMatch ? "match" : "no-match"}`}
+              type="password"
+              name="confirmPassword"
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChange={handleChange}
+              autoComplete="new-password"
+            />
 
-      <form onSubmit={handleSubmit}>
-        <label className="label">Username</label>
-        <input
-          className="input"
-          type="text"
-          value={username}
-          onChange={handleUsername}
-          autoComplete="username"
-        />
+            <button className="btn" type="submit" disabled={!isFormValid}>
+              Get Started
+            </button>
+          </form>
+        </div>
+      </section>
 
-        <label className="label">Email</label>
-        <input
-          className="input"
-          type="email"
-          value={email}
-          onChange={handleEmail}
-          autoComplete="email"
-        />
+      <section className="register-img">
+        <img src="../assets/register-bg.png" alt="Register background" />
+      </section>
 
-        <label className="label">Password</label>
-        <input
-          className="input"
-          type="password"
-          value={password}
-          onChange={handlePassword}
-          autoComplete="new-password"
-        />
+      {modalConfig && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h2>{modalConfig.title}</h2>
+            <p>{modalConfig.message}</p>
 
-        <label className="label">Confirm Password</label>
-        <input
-          className="input"
-          type="password"
-          value={confirmPassword}
-          onChange={handleConfirmPassword}
-          autoComplete="new-password"
-        />
+            <div className="modal-actions">
+              {modalConfig.primaryAction.to ? (
+                <Link
+                  to={modalConfig.primaryAction.to}
+                  className={modalConfig.primaryAction.className || "btn"}
+                >
+                  {modalConfig.primaryAction.label}
+                </Link>
+              ) : (
+                <button
+                  className="btn"
+                  onClick={modalConfig.primaryAction.onClick}
+                >
+                  {modalConfig.primaryAction.label}
+                </button>
+              )}
 
-        <button className="btn" type="submit">
-          Submit
-        </button>
-      </form>
+              {modalConfig.secondaryAction && (
+                <button
+                  className="close-btn"
+                  onClick={modalConfig.secondaryAction.onClick}
+                >
+                  {modalConfig.secondaryAction.label}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
