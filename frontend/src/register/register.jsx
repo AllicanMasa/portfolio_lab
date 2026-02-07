@@ -86,7 +86,6 @@ export default function Register() {
             primaryAction: {
               label: "Go to Login",
               to: "/login",
-              // className: "login-link",
             },
             secondaryAction: {
               label: "Try Another Email",
@@ -126,17 +125,6 @@ export default function Register() {
     } catch (err) {
       setError(["Unable to register right now. Please try again."]);
     }
-  };
-
-  const errorMessage = () => {
-    if (!error) return null;
-    return (
-      <div className="error">
-        {error.map((errMsg, index) => (
-          <p key={index}>{errMsg}</p>
-        ))}
-      </div>
-    );
   };
 
   return (
@@ -220,13 +208,13 @@ export default function Register() {
               {modalConfig.primaryAction.to ? (
                 <Link
                   to={modalConfig.primaryAction.to}
-                  className={modalConfig.primaryAction.className || "btn"}
+                  className={modalConfig.primaryAction.className || "modal-button"}
                 >
                   {modalConfig.primaryAction.label}
                 </Link>
               ) : (
                 <button
-                  className="btn"
+                  className="modal-button"
                   onClick={modalConfig.primaryAction.onClick}
                 >
                   {modalConfig.primaryAction.label}

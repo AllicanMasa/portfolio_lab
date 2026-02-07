@@ -2,7 +2,12 @@ import React from 'react'
 
 const dashboard = () => {
   return (
-    <div>dashboard</div>
+    <button onClick={() => {
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+      }}>
+        Logout
+      </button>
   )
 }
 

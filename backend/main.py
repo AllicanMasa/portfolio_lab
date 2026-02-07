@@ -7,6 +7,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
+from fastapi import Body
+from auth import create_access_token
+
 from database import SessionLocal, engine
 from database import Base
 import models
@@ -99,3 +102,20 @@ def register_user(payload: RegisterRequest, db: Session = Depends(get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred during registration."
         )
+    
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+@app.post("/login", response_model=LoginResponse)
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == payload.email).first()
+    if not user or user.password_hash != hash_password(payload.password):
+        raise HTTPException(status_code=400, detail="Invalid email or password")
+
+    token = create_access_token({"sub": user.email})
+    return {"access_token": token}
